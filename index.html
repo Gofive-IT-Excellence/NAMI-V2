@@ -4521,17 +4521,6 @@ document.addEventListener("DOMContentLoaded", function(){
     inset 0 1px 0 rgba(255,255,255,.92) !important;
   backdrop-filter: blur(18px) saturate(1.2) !important;
 }
-.studio-stepper::after{
-  content:"" !important;
-  position:absolute !important;
-  left:24px !important;
-  right:24px !important;
-  bottom:8px !important;
-  height:3px !important;
-  border-radius:999px !important;
-  background: linear-gradient(90deg, #16d7e4 0 25%, rgba(14,143,178,.16) 25% 100%) !important;
-  pointer-events:none !important;
-}
 .studio-step{
   position: relative !important;
   z-index: 1 !important;
@@ -4638,7 +4627,6 @@ document.addEventListener("DOMContentLoaded", function(){
 }
 @media(max-width:760px){
   .studio-stepper{grid-template-columns:repeat(2,minmax(0,1fr)) !important;border-radius:24px !important}
-  .studio-stepper::after{display:none !important}
   .studio-step{border-radius:18px !important}
 }
 </style>
