@@ -1,2 +1,2 @@
-# NAMI-V2
-NAMI AI Business Card 
+# business-card-studio
+AI Business Card Designer
