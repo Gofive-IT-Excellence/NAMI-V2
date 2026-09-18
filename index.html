@@ -10638,6 +10638,13 @@ Not: "These are four templates where my logo was inserted."`;
     z-index: 2 !important;
   }
 
+
+  /* FIX 2026-09-18: prevent legacy Cm / John Doe hero card preview from appearing on mobile only. */
+  @media (max-width: 1100px) {
+    body:not(.intro-active) .hero .mockup {
+      display: none !important;
+    }
+  }
 </style>
 </body>
 </html>
