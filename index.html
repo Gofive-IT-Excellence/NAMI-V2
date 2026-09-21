@@ -76,8 +76,8 @@
     .intro-enter {
       position: absolute;
       left: 50%;
-      bottom: max(44px, env(safe-area-inset-bottom));
-      z-index: 1;
+      bottom: max(clamp(78px, 8vh, 118px), env(safe-area-inset-bottom));
+      z-index: 2;
       min-width: 176px;
       min-height: 54px;
       padding: 0 30px;
@@ -102,7 +102,7 @@
     }
     @media (max-width: 640px) {
       .intro-enter {
-        bottom: max(28px, env(safe-area-inset-bottom));
+        bottom: max(48px, env(safe-area-inset-bottom));
         min-width: 168px;
         min-height: 50px;
       }
@@ -5084,17 +5084,24 @@ document.addEventListener("DOMContentLoaded", function(){
       function enterSite() {
         intro.classList.add("is-hidden");
         document.body.classList.remove("intro-active");
-        sessionStorage.setItem("businessCardIntroSeen", "1");
         if (video) video.pause();
       }
 
-      if (sessionStorage.getItem("businessCardIntroSeen") === "1") {
-        enterSite();
-        return;
-      }
-
       if (video) video.play().catch(() => {});
-      enter.addEventListener("click", enterSite);
+      let introSoundEnabled = false;
+      enter.addEventListener("click", function () {
+        if (!introSoundEnabled) {
+          introSoundEnabled = true;
+          if (video) {
+            video.muted = false;
+            video.currentTime = 0;
+            video.play().catch(() => {});
+          }
+          enter.setAttribute("aria-label", "Enter site");
+          return;
+        }
+        enterSite();
+      });
     })();
 
     const SVG_NS = "http://www.w3.org/2000/svg";
