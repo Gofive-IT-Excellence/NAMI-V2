@@ -8936,10 +8936,14 @@ Not: "These are four templates where my logo was inserted."`;
           return resultData;
         }
 
-        if(resultData?.status==="error" || resultData?.success===false){
+        if(resultData?.status==="error"){
           const err=new Error(resultData?.error || "AI_JOB_FAILED");
           err.isWorkflowError=true;
           throw err;
+        }
+        if(resultData?.success===false){
+          console.warn("V73 RESULT not ready yet — retrying",resultData?.error||resultData?.message||"");
+          continue;
         }
       }catch(err){
         if(err?.isWorkflowError) throw err;
