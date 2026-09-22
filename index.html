@@ -7562,6 +7562,7 @@ document.addEventListener("DOMContentLoaded", function(){
   let generated=false;
   let generatedFingerprint="";
   let creatingTimer=null;
+  const volatileJobStore={};
   // Keep the real uploaded assets independent from the generated whole-card
   // artwork. After "ใช้แบบนี้", the editor contains a flattened AI card image;
   // it must never be mistaken for the person's profile on the next generation.
@@ -7623,6 +7624,26 @@ document.addEventListener("DOMContentLoaded", function(){
   function clamp(v,a,b){v=Number(v);return Number.isFinite(v)?Math.max(a,Math.min(b,v)):a}
   function validHex(v,f){v=String(v||"");return /^#[0-9a-f]{6}$/i.test(v)?v:f}
   function esc(v){return String(v||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+  function rememberJob(key,value){
+    volatileJobStore[key]=String(value||"");
+    try{
+      if(window.sessionStorage) window.sessionStorage.setItem(key,String(value||""));
+    }catch(e){}
+  }
+  function forgetJob(key){
+    delete volatileJobStore[key];
+    try{
+      if(window.sessionStorage) window.sessionStorage.removeItem(key);
+    }catch(e){}
+  }
+  function readJob(key){
+    try{
+      const stored=window.sessionStorage ? window.sessionStorage.getItem(key) : "";
+      return stored || volatileJobStore[key] || "";
+    }catch(e){
+      return volatileJobStore[key] || "";
+    }
+  }
 
   function getSnap(){
     try{
@@ -8946,7 +8967,7 @@ Not: "These are four templates where my logo was inserted."`;
         // V73 Create AI Job accepts body.jobId/clientJobId, so the browser
         // always knows which result to poll even if Respond Start is empty.
         jobId="job-"+Date.now()+"-"+Math.random().toString(36).slice(2,10);
-        sessionStorage.setItem(V73_JOB_STORAGE_KEY,jobId);
+        rememberJob(V73_JOB_STORAGE_KEY,jobId);
 
         const requestBody=await payload();
         requestBody.jobId=jobId;
@@ -8973,7 +8994,7 @@ Not: "These are four templates where my logo was inserted."`;
             if(started?.jobId && String(started.jobId)!==String(jobId)){
               console.warn("V73 server returned a different jobId; using server jobId",started.jobId);
               jobId=String(started.jobId);
-              sessionStorage.setItem(V73_JOB_STORAGE_KEY,jobId);
+              rememberJob(V73_JOB_STORAGE_KEY,jobId);
             }
           }catch(e){
             console.warn("V73 START non-JSON response ignored");
@@ -8996,7 +9017,7 @@ Not: "These are four templates where my logo was inserted."`;
       const v73Designs=result.designs.slice(0,4).map((d,i)=>normalize(d,i));
       designs=v73Designs;
       active=0;generated=true;generatedFingerprint=requestFingerprint;paintAll();
-      sessionStorage.removeItem(V73_JOB_STORAGE_KEY);
+      forgetJob(V73_JOB_STORAGE_KEY);
       hideAiCreating();
       console.log("V73 DESIGNS APPLIED",{engine:result.engine,jobId,count:designs.length});
       if(typeof showToast==="function")showToast("AI สร้างงานเสร็จแล้ว");
@@ -9006,7 +9027,7 @@ Not: "These are four templates where my logo was inserted."`;
       const status=document.getElementById("aiCreatingStatus");
 
       if(hasCompleteAiDesigns()){
-        sessionStorage.removeItem(V73_JOB_STORAGE_KEY);
+        forgetJob(V73_JOB_STORAGE_KEY);
         clearFalseAiFailureUi();
         if(typeof showToast==="function")showToast("AI สร้างงานเสร็จแล้ว");
         return;
@@ -9018,7 +9039,7 @@ Not: "These are four templates where my logo was inserted."`;
         if(status) status.textContent=msg.includes("AI_LEGACY_TEMPLATE_SET")
           ? "AI ยังส่งชุด 4 สไตล์เดิมกลับมา กรุณากดสร้างใหม่อีกครั้ง"
           : (msg.includes("AI_TIMEOUT")?"ระบบไม่ได้รับผลลัพธ์ภายใน 12 นาที กรุณากดสร้างใหม่":"AI สร้างงานไม่สำเร็จ กรุณากดสร้างใหม่");
-        sessionStorage.removeItem(V73_JOB_STORAGE_KEY);
+        forgetJob(V73_JOB_STORAGE_KEY);
         if(typeof showToast==="function")showToast(msg.includes("AI_LEGACY_TEMPLATE_SET")?"AI ยังส่งชุดเดิมกลับมา กรุณาสร้างใหม่":(msg.includes("AI_TIMEOUT")?"หมดเวลารอผล AI กรุณาสร้างใหม่":"AI สร้างงานไม่สำเร็จ"));
       }else{
         // Network/start-response problems must NOT expose old designs or declare the workflow stopped.
@@ -9027,7 +9048,7 @@ Not: "These are four templates where my logo was inserted."`;
 
         // If we already know the jobId, resume polling automatically.
         if(jobId){
-          sessionStorage.setItem(V73_JOB_STORAGE_KEY,jobId);
+          rememberJob(V73_JOB_STORAGE_KEY,jobId);
           busy=false;
           setTimeout(()=>generate(jobId),4000);
           return;
@@ -9044,7 +9065,7 @@ Not: "These are four templates where my logo was inserted."`;
   // If the page is refreshed while V73 is still running, resume the same job
   // and keep the loading screen instead of exposing the old placeholder designs.
   window.addEventListener("load",()=>{
-    const pendingJob=sessionStorage.getItem(V73_JOB_STORAGE_KEY);
+    const pendingJob=readJob(V73_JOB_STORAGE_KEY);
     if(pendingJob) setTimeout(()=>generate(pendingJob),150);
   });
 
