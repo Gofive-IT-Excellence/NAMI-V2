@@ -7598,6 +7598,10 @@ document.addEventListener("DOMContentLoaded", function(){
     clearInterval(creatingTimer);creatingTimer=null;
     document.getElementById("aiCreatingOverlay")?.remove();
   }
+  function hasCompleteAiDesigns(){
+    return Array.isArray(designs) && designs.length>=4 &&
+      designs.slice(0,4).every(d=>d && (d.artBackground || d.artBackgroundBack || d.mockupImage));
+  }
 
   function clone(v){try{return JSON.parse(JSON.stringify(v))}catch(e){return v}}
   function clamp(v,a,b){v=Number(v);return Number.isFinite(v)?Math.max(a,Math.min(b,v)):a}
@@ -8985,6 +8989,13 @@ Not: "These are four templates where my logo was inserted."`;
 
       const status=document.getElementById("aiCreatingStatus");
 
+      if(hasCompleteAiDesigns()){
+        sessionStorage.removeItem(V73_JOB_STORAGE_KEY);
+        hideAiCreating();
+        if(typeof showToast==="function")showToast("AI สร้างงานเสร็จแล้ว");
+        return;
+      }
+
       if(e?.isWorkflowError){
         // Only an explicit status:error from the result webhook is a real workflow failure.
         const msg=String(e?.message||"");
@@ -9007,6 +9018,7 @@ Not: "These are four templates where my logo was inserted."`;
         }
       }
     }finally{
+      if(hasCompleteAiDesigns()) hideAiCreating();
       busy=false;if(btn){btn.disabled=false;btn.textContent=old}
     }
   }
