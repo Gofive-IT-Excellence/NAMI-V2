@@ -7602,6 +7602,22 @@ document.addEventListener("DOMContentLoaded", function(){
     return Array.isArray(designs) && designs.length>=4 &&
       designs.slice(0,4).every(d=>d && (d.artBackground || d.artBackgroundBack || d.mockupImage));
   }
+  function hasRenderedAiDesigns(){
+    const thumbs=Array.from(document.querySelectorAll("#aiThumbs button"));
+    if(thumbs.length<4)return false;
+    return thumbs.slice(0,4).every(btn=>{
+      const imgs=Array.from(btn.querySelectorAll("img"));
+      return imgs.length && imgs.every(img=>img.complete && img.naturalWidth>0 && img.naturalHeight>0);
+    });
+  }
+  function clearFalseAiFailureUi(){
+    if(!hasCompleteAiDesigns() && !hasRenderedAiDesigns())return false;
+    hideAiCreating();
+    document.querySelectorAll(".editor-toast").forEach(toast=>{
+      if(String(toast.textContent||"").includes("AI สร้างงานไม่สำเร็จ")) toast.remove();
+    });
+    return true;
+  }
 
   function clone(v){try{return JSON.parse(JSON.stringify(v))}catch(e){return v}}
   function clamp(v,a,b){v=Number(v);return Number.isFinite(v)?Math.max(a,Math.min(b,v)):a}
@@ -8991,7 +9007,7 @@ Not: "These are four templates where my logo was inserted."`;
 
       if(hasCompleteAiDesigns()){
         sessionStorage.removeItem(V73_JOB_STORAGE_KEY);
-        hideAiCreating();
+        clearFalseAiFailureUi();
         if(typeof showToast==="function")showToast("AI สร้างงานเสร็จแล้ว");
         return;
       }
@@ -9018,10 +9034,12 @@ Not: "These are four templates where my logo was inserted."`;
         }
       }
     }finally{
-      if(hasCompleteAiDesigns()) hideAiCreating();
+      clearFalseAiFailureUi();
       busy=false;if(btn){btn.disabled=false;btn.textContent=old}
     }
   }
+
+  setInterval(clearFalseAiFailureUi,1200);
 
   // If the page is refreshed while V73 is still running, resume the same job
   // and keep the loading screen instead of exposing the old placeholder designs.
