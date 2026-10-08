@@ -7754,7 +7754,7 @@ document.addEventListener("DOMContentLoaded", function(){
   }
 
 
-  async function captureDesignReferencePng(side){
+  async function captureDesignReferencePng(side, foreground=false){
     const restore={
       elements:clone(elements),
       activeSide,
@@ -7775,29 +7775,14 @@ document.addEventListener("DOMContentLoaded", function(){
       // V6 reference for FLUX:
       // keep only the visual foundation / background geometry.
       // Strip all customer text, portrait, logo, icons, QR, badges and other content.
-      const clean = clone(sourceSide).filter(el=>{
-        if(!el) return false;
-        if(el.type==="text") return false;
-        if(el.type==="icon") return false;
-        if(el.type==="image"){
-          return el.role==="card-bg-image";
-        }
-        // Keep intentional graphic shapes such as rect/circle/line.
-        return ["rect","circle","line"].includes(el.type);
-      });
-
-      // Guarantee a clean base if the side had only customer content.
-      if(!clean.length){
-        clean.push({
-          id:"v6-clean-base-"+side,
-          type:"rect",
-          x:0,y:0,w:1050,h:600,
-          radius:0,
-          fill:"#ffffff",
-          opacity:1,
-          locked:true,
-          role:"background"
-        });
+      const isBackground = el => el && (
+        ["rect","circle","line"].includes(el.type) ||
+        (el.type==="image" && el.role==="card-bg-image")
+      );
+      const clean = clone(sourceSide).filter(el=>foreground ? !isBackground(el) : isBackground(el));
+      if(!foreground && !clean.length){
+        clean.push({id:"clean-base-"+side,type:"rect",x:0,y:0,w:1050,h:600,
+          fill:"#ffffff",opacity:1,role:"background"});
       }
 
       elements=clean;
@@ -7815,6 +7800,11 @@ document.addEventListener("DOMContentLoaded", function(){
       const uiLayer=svgCopy.querySelector("#ui");
       if(uiLayer) uiLayer.innerHTML="";
 
+      if(foreground){
+        svgCopy.querySelector("#backgroundContent")?.remove();
+        svgCopy.style.background="transparent";
+        svgCopy.style.backgroundColor="transparent";
+      }
       const xml=new XMLSerializer().serializeToString(svgCopy);
       const data="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(xml);
       const img=new Image();
@@ -7824,8 +7814,10 @@ document.addEventListener("DOMContentLoaded", function(){
       canvas.width=1050;
       canvas.height=600;
       const ctx=canvas.getContext("2d");
-      ctx.fillStyle="#ffffff";
-      ctx.fillRect(0,0,canvas.width,canvas.height);
+      if(!foreground){
+        ctx.fillStyle="#ffffff";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+      }
       ctx.drawImage(img,0,0,canvas.width,canvas.height);
       return canvas.toDataURL("image/png",0.94);
     }catch(e){
@@ -8113,6 +8105,15 @@ Not: "These are four templates where my logo was inserted."`;
       throw new Error("จับภาพนามบัตรด้านหลังจาก Step 2 ไม่สำเร็จ");
     }
 
+    const frontDesignReferenceImage=await captureDesignReferencePng("front");
+    const backDesignReferenceImage=await captureDesignReferencePng("back");
+    const frontForegroundOverlayImage=await captureDesignReferencePng("front",true);
+    const backForegroundOverlayImage=await captureDesignReferencePng("back",true);
+    if([frontDesignReferenceImage,backDesignReferenceImage,frontForegroundOverlayImage,backForegroundOverlayImage]
+      .some(image=>!image?.startsWith("data:image/"))){
+      throw new Error("เตรียมภาพพื้นหลังและข้อความนามบัตรไม่สำเร็จ กรุณาลองใหม่");
+    }
+    const sourceGeometry={front:v7GeometryForSide("front"),back:v7GeometryForSide("back")};
     const snap=getSnap();
     const allSideElements=[
       ...(snap.sideStates?.front||snap.elements||[]),
@@ -8155,7 +8156,9 @@ Not: "These are four templates where my logo was inserted."`;
       frontPreviewImage,
       backPreviewImage,
       frontAiReferenceImage:frontPreviewImage,
-      backAiReferenceImage:backPreviewImage
+      backAiReferenceImage:backPreviewImage,
+      frontDesignReferenceImage,backDesignReferenceImage,
+      frontForegroundOverlayImage,backForegroundOverlayImage,sourceGeometry
     };
 
     console.log("[NAMI V61] Step-2 raster payload ready",{
@@ -8889,26 +8892,21 @@ Not: "These are four templates where my logo was inserted."`;
     }catch(e){
       console.error("V65 GENERATE ERROR:",e);
 
-      const status=document.getElementById("aiCreatingStatus");
-
-      if(e?.isWorkflowError){
-        // Only an explicit status:error from the result webhook is a real workflow failure.
-        if(status) status.textContent=(String(e?.message||"").includes("AI_TIMEOUT")?"ระบบไม่ได้รับผลลัพธ์ภายใน 12 นาที กรุณากดสร้างใหม่":"AI สร้างงานไม่สำเร็จ กรุณากดสร้างใหม่");
-        sessionStorage.removeItem(V65_JOB_STORAGE_KEY);
-        if(typeof showToast==="function")showToast(String(e?.message||"").includes("AI_TIMEOUT")?"หมดเวลารอผล AI กรุณาสร้างใหม่":"AI สร้างงานไม่สำเร็จ");
-      }else{
-        // Network/start-response problems must NOT expose old designs or declare the workflow stopped.
-        if(status) status.textContent="AI กำลังสร้างงาน....";
-        if(typeof showToast==="function")showToast("กำลังเชื่อมต่อผล AI ใหม่อัตโนมัติ");
-
-        // If we already know the jobId, resume polling automatically.
-        if(jobId){
-          sessionStorage.setItem(V65_JOB_STORAGE_KEY,jobId);
-          busy=false;
-          setTimeout(()=>generate(jobId),4000);
-          return;
-        }
+      clearInterval(creatingTimer);creatingTimer=null;
+      sessionStorage.removeItem(V65_JOB_STORAGE_KEY);
+      const overlay=document.getElementById("aiCreatingOverlay");
+      if(overlay){
+        overlay.querySelector(".ai-creating-orb")?.remove();
+        overlay.querySelector(".ai-creating-progress")?.remove();
+        overlay.querySelector(".ai-creating-steps")?.remove();
+        const heading=overlay.querySelector("h3");
+        if(heading) heading.textContent="สร้างดีไซน์ไม่สำเร็จ";
+        const status=document.getElementById("aiCreatingStatus");
+        if(status) status.textContent=String(e.message||"กรุณาลองใหม่");
+        const note=overlay.querySelector(".ai-creating-note");
+        if(note) note.textContent="กดสร้างใหม่เพื่อลองอีกครั้ง หรือแก้ไขข้อมูลนามบัตร";
       }
+      if(typeof showToast==="function")showToast("สร้างดีไซน์ไม่สำเร็จ กรุณาลองใหม่");
     }finally{
       busy=false;if(btn){btn.disabled=false;btn.textContent=old}
     }
