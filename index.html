@@ -10660,10 +10660,11 @@ Not: "These are four templates where my logo was inserted."`;
   }
 
   .template-preview-card.template-image-card img {
-    position: absolute !important;
-    inset: 0 !important;
+    position: relative !important;
+    inset: auto !important;
     width: 100% !important;
-    height: 100% !important;
+    height: auto !important;
+    aspect-ratio: 90 / 54 !important;
     display: block !important;
     object-fit: cover !important;
     object-position: center !important;
