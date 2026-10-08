@@ -8768,7 +8768,7 @@ Not: "These are four templates where my logo was inserted."`;
 
       try{
         const url=RESULT_WEBHOOK_URL+"?jobId="+encodeURIComponent(jobId)+"&_="+Date.now();
-        const res=await fetch(url,{method:"GET",cache:"no-store"});
+        const res=await fetch(url,{method:"GET",cache:"no-store",signal:AbortSignal.timeout(20000)});
 
         if(!res.ok){
           console.warn("V65 RESULT HTTP",res.status,"— retrying");
@@ -8851,6 +8851,7 @@ Not: "These are four templates where my logo was inserted."`;
 
         const res=await fetch(WEBHOOK_URL,{
           method:"POST",
+          signal:AbortSignal.timeout(30000),
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify(requestBody)
         });
